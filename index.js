@@ -6,18 +6,18 @@ const exec = promisify(require('child_process').exec);
 
 function help() {
   console.log(`
-    The script reads version control repositories urls from a file.
-    For each url, if a clone already exists - a git pull is performed.
-    If a clone doesn't exist - a git clone is performed.
-  
-    Usage:
-      Expects 0 - 2 arguments.
-      First expected argument is file path to read repos urls from.
-      Second expected argument is directory path to clone repos to.
+The script reads version control repositories urls from a file.
+For each url, if a clone already exists - a git pull is performed.
+If a clone doesn't exist - a git clone is performed.
 
-      No arguments:
-        File to read repos urls from is './my.list'.
-        Directory to save repos to is '~/git'.
+Usage:
+  Expects 0 - 2 arguments.
+  First expected argument is file path to read repos urls from.
+  Second expected argument is directory path to clone repos to.
+
+  No arguments:
+    File to read repos urls from is './my.list'.
+    Directory to save repos to is '~/git'.
   `);
   process.exit(1);
 }
@@ -65,9 +65,9 @@ function getRepoName(repoUrl) {
 async function cloneIfNotExists(user, name, repoUrl, saveReposFilePath = '~/git') {
   const pathWithoutTilde = saveReposFilePath.includes('~') ? `/Users/${user}/${saveReposFilePath.substring(2)}` : saveReposFilePath;
   await access(`${pathWithoutTilde}/${name}`).catch(async e => {
-    console.log(`Clonning ${name} into ${saveReposFilePath}...`);
+    console.log(`Cloning ${name} into ${saveReposFilePath}...`);
     const res = await exec(`git clone ${repoUrl} ${saveReposFilePath}/${name}`);
-    throw new Error('Clonning process successful');
+    throw new Error('Cloning process successful');
   });
 }
 
@@ -77,10 +77,10 @@ async function pullIfExists(name, saveReposFilePath = '~/git') {
   return stdout;
 }
 
-function suggestAction(reposUrlsFilePath = '~/git') {
+function suggestAction(saveReposFilePath = '~/git') {
   const fgCyan = '\x1b[36m';
   const reset = '\x1b[0m';
-  console.log(`\n${fgCyan}  cd ${reposUrlsFilePath}${reset}\n`);
+  console.log(`\n${fgCyan}  cd ${saveReposFilePath}${reset}\n`);
 }
 
 ;(async () => {
@@ -99,6 +99,6 @@ function suggestAction(reposUrlsFilePath = '~/git') {
     }
   });
   await Promise.all(prms);
-  suggestAction(reposUrlsFilePath);
+  suggestAction(saveReposFilePath);
 })();
 
