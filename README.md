@@ -11,4 +11,6 @@
 
 ### No arguments:
   - File to read repos urls from is './my.list'.
-  - Directory to save repos to is '~/git'.
+  - Directory to save repos to is '.' (current directory).
+
+\* Arguments are cached to '~/git\_init\_settings' for subsequent uses.

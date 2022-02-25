@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { access, readFile } = require('fs/promises');
+const { access, readFile, writeFile } = require('fs/promises');
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 
@@ -9,6 +9,7 @@ function help() {
 The script reads version control repositories urls from a file.
 For each url, if a clone already exists - a git pull is performed.
 If a clone doesn't exist - a git clone is performed.
+Provided arguments are cached in ~/git_init_settings file.
 
 Usage:
   Expects 0 - 2 arguments.
@@ -17,15 +18,38 @@ Usage:
 
   No arguments:
     File to read repos urls from is './my.list'.
-    Directory to save repos to is '~/git'.
+    Directory to save repos to is '.' (current directory).
   `);
   process.exit(1);
 }
 
-function parseArgs() {
+async function saveSettings(args, user) {
+  const settingsFilePath = `/Users/${user}/.git_init_settings`;
+  try {
+    await access(settingsFilePath);
+    const raw = await readFile(settingsFilePath);
+    const settings = raw.toString().split('\n').filter(f => f);
+    if (!args.length) return settings;
+    if (settings.length < args.length) return;
+
+    let match = true;
+    args.forEach((arg, idx) => {
+      if (arg !== settings[idx]) {
+        match = false;
+      }
+    })
+    if (!match) await writeFile(settingsFilePath, args.join('\n'));
+  } catch (e) {
+      const argsToSave = args.length ? args.join('\n') : './my.list\n.';
+      await writeFile(settingsFilePath, argsToSave);
+  }
+}
+
+async function parseArgs(user) {
   const args = process.argv.slice(2);
   if (args.includes('-h')) help();
-  return args;
+  const newArgs = await saveSettings(args, user);
+  return (newArgs && Array.isArray(newArgs) && newArgs.length) ? newArgs : args;
 }
 
 async function getReposUrls(reposUrlsFilePath = './my.list') {
@@ -38,11 +62,11 @@ async function getReposUrls(reposUrlsFilePath = './my.list') {
   return file.toString().split('\n').filter(f => f);
 }
 
-async function createGitDir(user, saveDirPath = '~/git') {
-  const pathWithoutTilde = saveDirPath.includes('~') ? saveDirPath.substring(2) : saveDirPath;
-  await access(`/Users/${user}/${pathWithoutTilde}`).catch(async e => {
+async function createGitDir(user, saveDirPath = '.') {
+  const pathWithoutTilde = saveDirPath.includes('~') ? `/Users/${user}/${saveDirPath.substring(2)}` : saveDirPath;
+  await access(pathWithoutTilde).catch(async e => {
     console.log(`Creating a new directory at ${saveDirPath}...`);
-    await exec(`mkdir -p ${saveDirPath}`);
+    if (saveDirPath !== '.') await exec(`mkdir -p ${saveDirPath}`);
   });
 }
 
@@ -62,7 +86,7 @@ function getRepoName(repoUrl) {
   return repoUrl.substring(lastSlashIndex + 1, lastPeriodIndex);
 }
 
-async function cloneIfNotExists(user, name, repoUrl, saveReposFilePath = '~/git') {
+async function cloneIfNotExists(user, name, repoUrl, saveReposFilePath = '.') {
   const pathWithoutTilde = saveReposFilePath.includes('~') ? `/Users/${user}/${saveReposFilePath.substring(2)}` : saveReposFilePath;
   await access(`${pathWithoutTilde}/${name}`).catch(async e => {
     console.log(`Cloning ${name} into ${saveReposFilePath}...`);
@@ -71,22 +95,22 @@ async function cloneIfNotExists(user, name, repoUrl, saveReposFilePath = '~/git'
   });
 }
 
-async function pullIfExists(name, saveReposFilePath = '~/git') {
+async function pullIfExists(name, saveReposFilePath = '.') {
   console.log(`Updating ${name} in ${saveReposFilePath}...`);
   const {stdout} = await exec(`git -C ${saveReposFilePath}/${name} pull`);
   return stdout;
 }
 
-function suggestAction(saveReposFilePath = '~/git') {
+function suggestAction(saveReposFilePath = '.') {
   const fgCyan = '\x1b[36m';
   const reset = '\x1b[0m';
   console.log(`\n${fgCyan}  cd ${saveReposFilePath}${reset}\n`);
 }
 
 ;(async () => {
-  const [reposUrlsFilePath, saveReposFilePath] = parseArgs();
-  const content = await getReposUrls(reposUrlsFilePath);
   const user = await getUser();
+  const [reposUrlsFilePath, saveReposFilePath] = await parseArgs(user);
+  const content = await getReposUrls(reposUrlsFilePath);
   await createGitDir(user, saveReposFilePath);
   const prms = content.map(async (repoUrl) => {
     const name = getRepoName(repoUrl);
