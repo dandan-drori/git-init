@@ -65,14 +65,14 @@ function getRepoName(repoUrl) {
 async function cloneIfNotExists(user, name, repoUrl, saveReposFilePath = '~/git') {
   const pathWithoutTilde = saveReposFilePath.includes('~') ? `/Users/${user}/${saveReposFilePath.substring(2)}` : saveReposFilePath;
   await access(`${pathWithoutTilde}/${name}`).catch(async e => {
-    console.log(`Clonning ${name}...`);
+    console.log(`Clonning ${name} into ${saveReposFilePath}...`);
     const res = await exec(`git clone ${repoUrl} ${saveReposFilePath}/${name}`);
-    process.exit(1);
+    throw new Error('Clonning process successful');
   });
 }
 
 async function pullIfExists(name, saveReposFilePath = '~/git') {
-  console.log(`Updating ${name}...`);
+  console.log(`Updating ${name} in ${saveReposFilePath}...`);
   const {stdout} = await exec(`git -C ${saveReposFilePath}/${name} pull`);
   return stdout;
 }
@@ -90,9 +90,13 @@ function suggestAction(reposUrlsFilePath = '~/git') {
   await createGitDir(user, saveReposFilePath);
   const prms = content.map(async (repoUrl) => {
     const name = getRepoName(repoUrl);
-    await cloneIfNotExists(user, name, repoUrl, saveReposFilePath);
-    await pullIfExists(name, saveReposFilePath);
-    return new Promise((resolve) => resolve())
+    try {
+      await cloneIfNotExists(user, name, repoUrl, saveReposFilePath);
+      await pullIfExists(name, saveReposFilePath);
+    } catch (e) {
+    } finally {
+      return new Promise((resolve) => resolve())
+    }
   });
   await Promise.all(prms);
   suggestAction(reposUrlsFilePath);
