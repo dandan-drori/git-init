@@ -23,8 +23,12 @@ Usage:
   process.exit(1);
 }
 
+function isWindowsOS() {
+  return process.platform === 'win32';
+}
+
 async function saveSettings(args, user) {
-  const settingsFilePath = `/Users/${user}/.git_init_settings`;
+  const settingsFilePath = isWindowsOS() ? `C:\\Users\\${user}\\.git_init_settings` : `/Users/${user}/.git_init_settings`;
   try {
     await access(settingsFilePath);
     const raw = await readFile(settingsFilePath);
@@ -63,9 +67,12 @@ async function getReposUrls(reposUrlsFilePath = './my.list') {
 }
 
 async function createGitDir(user, saveDirPath = '.') {
-  const pathWithoutTilde = saveDirPath.includes('~') ? `/Users/${user}/${saveDirPath.substring(2)}` : saveDirPath;
+  const homePath = isWindowsOS() ? `C:\\Users\\${user}\\` : `Users/${user}/`;
+  const pathWithoutTilde = saveDirPath.includes('~') ? `${homePath}${saveDirPath.substring(2)}` : saveDirPath;
   await access(pathWithoutTilde).catch(async e => {
-    console.log(`Creating a new directory at ${saveDirPath}...`);
+    const path = saveDirPath === '.' ? 'current directory' : saveDirPath
+    const dirPath = path.includes(`/Users/${user}`) ? path.replace(`/Users/${user}`, '~') : path;
+    console.log(`Creating a new directory at ${dirPath}...`);
     if (saveDirPath !== '.') await exec(`mkdir -p ${saveDirPath}`);
   });
 }
@@ -74,7 +81,7 @@ async function getUser() {
   const fgRed = '\x1b[31m';
   const reset = '\x1b[0m';
   const {stdout} = await exec('whoami').catch(e => {
-    console.log(`${fgRed}Error:${reset} command 'whoami' not found. This is script is for Unix based systems only`);
+    console.log(`${fgRed}Error:${reset} command 'whoami' not found.`);
     process.exit(1);
   });
   return stdout.trim();
@@ -86,43 +93,52 @@ function getRepoName(repoUrl) {
   return repoUrl.substring(lastSlashIndex + 1, lastPeriodIndex);
 }
 
-async function cloneIfNotExists(user, name, repoUrl, saveReposFilePath = '.') {
-  const pathWithoutTilde = saveReposFilePath.includes('~') ? `/Users/${user}/${saveReposFilePath.substring(2)}` : saveReposFilePath;
+async function cloneIfNotExists(user, name, repoUrl, saveReposDirPath = '.') {
+  const homePath = isWindowsOS() ? `C:\\Users\\${user}\\` : `Users/${user}/`;
+  const dirName = saveReposDirPath === '.' ? 'current directory' : saveReposDirPath;
+  const pathWithoutTilde = saveReposDirPath.includes('~') ? `${homePath}${saveReposDirPath.substring(2)}` : saveReposDirPath;
   await access(`${pathWithoutTilde}/${name}`).catch(async e => {
-    console.log(`Cloning ${name} into ${saveReposFilePath}...`);
-    const res = await exec(`git clone ${repoUrl} ${saveReposFilePath}/${name}`);
+    const dirPath = saveReposDirPath.includes(`/Users/${user}`) ? saveReposDirPath.replace(`/Users/${user}`, '~') : saveReposDirPath;
+    console.log(`Cloning ${name} into ${dirPath}...`);
+    const slash = isWindowsOS() ? `\\` : '/';
+    const res = await exec(`git clone ${repoUrl} ${saveReposDirPath}${slash}${name}`);
     throw new Error('Cloning process successful');
   });
 }
 
-async function pullIfExists(name, saveReposFilePath = '.') {
-  console.log(`Updating ${name} in ${saveReposFilePath}...`);
-  const {stdout} = await exec(`git -C ${saveReposFilePath}/${name} pull`);
+async function pullIfExists(name, saveReposDirPath = '.', user) {
+  const dirName = saveReposDirPath === '.' ? 'current directory' : saveReposDirPath;
+  const dirPath = dirName.includes(`/Users/${user}`) ? dirName.replace(`/Users/${user}`, '~') : dirName;
+  console.log(`Updating ${name} in ${dirPath}...`);
+  const slash = isWindowsOS() ? `\\` : '/';
+  const {stdout} = await exec(`git -C ${saveReposDirPath}${slash}${name} pull`);
   return stdout;
 }
 
-function suggestAction(saveReposFilePath = '.') {
+function suggestAction(saveReposDirPath = '.', user) {
+  if (saveReposDirPath === '.') return;
   const fgCyan = '\x1b[36m';
   const reset = '\x1b[0m';
-  console.log(`\n${fgCyan}  cd ${saveReposFilePath}${reset}\n`);
+  const dirPath = saveReposDirPath.includes(`/Users/${user}`) ? saveReposDirPath.replace(`/Users/${user}`, '~') : saveReposDirPath;
+  console.log(`\n${fgCyan}  cd ${dirPath}${reset}\n`);
 }
 
 ;(async () => {
   const user = await getUser();
-  const [reposUrlsFilePath, saveReposFilePath] = await parseArgs(user);
+  const [reposUrlsFilePath, saveReposDirPath] = await parseArgs(user);
   const content = await getReposUrls(reposUrlsFilePath);
-  await createGitDir(user, saveReposFilePath);
+  await createGitDir(user, saveReposDirPath);
   const prms = content.map(async (repoUrl) => {
     const name = getRepoName(repoUrl);
     try {
-      await cloneIfNotExists(user, name, repoUrl, saveReposFilePath);
-      await pullIfExists(name, saveReposFilePath);
+      await cloneIfNotExists(user, name, repoUrl, saveReposDirPath);
+      await pullIfExists(name, saveReposDirPath, user);
     } catch (e) {
     } finally {
       return new Promise((resolve) => resolve())
     }
   });
   await Promise.all(prms);
-  suggestAction(saveReposFilePath);
+  suggestAction(saveReposDirPath, user);
 })();
 
