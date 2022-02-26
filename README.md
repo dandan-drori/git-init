@@ -5,7 +5,9 @@
 * If a clone already exists - a `git pull` is performed instead.
 
 The following command will create a file named 'my.list' with repositories urls:
-\* Don't forget to replace \<author\> and \<repo\_name\> with the actual values.
+
+- Don't forget to replace \<author\> and \<repo\_name\> with the actual values.
+
 ```
 echo 'http://github.com/<author>/<repo_name>\nhttp://github.com/<author>/<repo_name>' > ./my.list
 ```
