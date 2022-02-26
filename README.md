@@ -1,8 +1,8 @@
 # Intro
 
-* The script reads version control repositories urls from a file.
-* For each url, a `git clone` is performed.
-* If a clone already exists - a `git pull` is performed instead.
+The script reads version control repositories urls from a file,
+for each url, a `git clone` is performed.
+If a clone already exists - a `git pull` is performed instead.
 
 The following command will create a file named 'my.list' with repositories urls:
 
