@@ -9,7 +9,7 @@ function help() {
 The script reads version control repositories urls from a file.
 For each url, a git clone is performed.
 if a clone already exists - a git pull is performed.
-Provided arguments are cached in ~/git_init_settings file.
+Provided arguments are cached in ~/.git_init_settings file.
 
 Usage:
   Expects 0 - 2 arguments.
@@ -17,7 +17,7 @@ Usage:
   Second expected argument is directory path to clone repos to.
 
   No arguments:
-    If a ~/git_init_settings file exists, saved settings are used,
+    If a ~/.git_init_settings file exists, saved settings are used,
     otherwise the file to read repos urls from is './my.list'.
     and the directory to save repos to is the current directory.
   `);
