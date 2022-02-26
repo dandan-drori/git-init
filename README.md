@@ -21,3 +21,9 @@ echo 'http://github.com/<author>/<repo_name>\nhttp://github.com/<author>/<repo_n
   - Attempts to read and use cached settings from '~/.git\_init\_settings'.
   - default file to read repos urls from is './my.list'.
   - default directory to save repos to is the current directory.
+
+- To be able to run the script from any directory, add the following line to your ~/.bashrc or ~/.zshrc:
+
+```
+alias git-init="/path/to/script/index.js"
+```
