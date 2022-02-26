@@ -7,8 +7,8 @@ const exec = promisify(require('child_process').exec);
 function help() {
   console.log(`
 The script reads version control repositories urls from a file.
-For each url, if a clone already exists - a git pull is performed.
-If a clone doesn't exist - a git clone is performed.
+For each url, a git clone is performed.
+if a clone already exists - a git pull is performed.
 Provided arguments are cached in ~/git_init_settings file.
 
 Usage:
@@ -17,8 +17,9 @@ Usage:
   Second expected argument is directory path to clone repos to.
 
   No arguments:
-    File to read repos urls from is './my.list'.
-    Directory to save repos to is '.' (current directory).
+    If a ~/git_init_settings file exists, saved settings are used,
+    otherwise the file to read repos urls from is './my.list'.
+    and the directory to save repos to is the current directory.
   `);
   process.exit(1);
 }
@@ -30,7 +31,6 @@ function isWindowsOS() {
 async function saveSettings(args, user) {
   const settingsFilePath = isWindowsOS() ? `C:\\Users\\${user}\\.git_init_settings` : `/Users/${user}/.git_init_settings`;
   try {
-    await access(settingsFilePath);
     const raw = await readFile(settingsFilePath);
     const settings = raw.toString().split('\n').filter(f => f);
     if (!args.length) return settings;
@@ -56,7 +56,7 @@ async function parseArgs(user) {
   return (newArgs && Array.isArray(newArgs) && newArgs.length) ? newArgs : args;
 }
 
-async function getReposUrls(reposUrlsFilePath = './my.list') {
+async function getReposUrls(reposUrlsFilePath) {
   const fgRed = '\x1b[31m';
   const reset = '\x1b[0m';
   const file = await readFile(reposUrlsFilePath).catch(e => {
@@ -66,7 +66,7 @@ async function getReposUrls(reposUrlsFilePath = './my.list') {
   return file.toString().split('\n').filter(f => f);
 }
 
-async function createGitDir(user, saveDirPath = '.') {
+async function createGitDir(user, saveDirPath) {
   const homePath = isWindowsOS() ? `C:\\Users\\${user}\\` : `Users/${user}/`;
   const pathWithoutTilde = saveDirPath.includes('~') ? `${homePath}${saveDirPath.substring(2)}` : saveDirPath;
   await access(pathWithoutTilde).catch(async e => {
@@ -93,12 +93,12 @@ function getRepoName(repoUrl) {
   return repoUrl.substring(lastSlashIndex + 1, lastPeriodIndex);
 }
 
-async function cloneIfNotExists(user, name, repoUrl, saveReposDirPath = '.') {
+async function cloneIfNotExists(user, name, repoUrl, saveReposDirPath) {
   const homePath = isWindowsOS() ? `C:\\Users\\${user}\\` : `Users/${user}/`;
   const dirName = saveReposDirPath === '.' ? 'current directory' : saveReposDirPath;
   const pathWithoutTilde = saveReposDirPath.includes('~') ? `${homePath}${saveReposDirPath.substring(2)}` : saveReposDirPath;
   await access(`${pathWithoutTilde}/${name}`).catch(async e => {
-    const dirPath = saveReposDirPath.includes(`/Users/${user}`) ? saveReposDirPath.replace(`/Users/${user}`, '~') : saveReposDirPath;
+    const dirPath = dirName.includes(`/Users/${user}`) ? dirName.replace(`/Users/${user}`, '~') : dirName;
     console.log(`Cloning ${name} into ${dirPath}...`);
     const slash = isWindowsOS() ? `\\` : '/';
     const res = await exec(`git clone ${repoUrl} ${saveReposDirPath}${slash}${name}`);
@@ -106,7 +106,7 @@ async function cloneIfNotExists(user, name, repoUrl, saveReposDirPath = '.') {
   });
 }
 
-async function pullIfExists(name, saveReposDirPath = '.', user) {
+async function pullIfExists(name, saveReposDirPath, user) {
   const dirName = saveReposDirPath === '.' ? 'current directory' : saveReposDirPath;
   const dirPath = dirName.includes(`/Users/${user}`) ? dirName.replace(`/Users/${user}`, '~') : dirName;
   console.log(`Updating ${name} in ${dirPath}...`);
@@ -115,7 +115,7 @@ async function pullIfExists(name, saveReposDirPath = '.', user) {
   return stdout;
 }
 
-function suggestAction(saveReposDirPath = '.', user) {
+function suggestAction(saveReposDirPath, user) {
   if (saveReposDirPath === '.') return;
   const fgCyan = '\x1b[36m';
   const reset = '\x1b[0m';
@@ -125,7 +125,7 @@ function suggestAction(saveReposDirPath = '.', user) {
 
 ;(async () => {
   const user = await getUser();
-  const [reposUrlsFilePath, saveReposDirPath] = await parseArgs(user);
+  const [reposUrlsFilePath = './my.list', saveReposDirPath = '.'] = await parseArgs(user);
   const content = await getReposUrls(reposUrlsFilePath);
   await createGitDir(user, saveReposDirPath);
   const prms = content.map(async (repoUrl) => {

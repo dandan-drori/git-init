@@ -1,8 +1,8 @@
 # Intro
 
 * The script reads version control repositories urls from a file.
-* For each url, if a clone already exists - a git pull is performed.
-* If a clone doesn't exist - a git clone is performed.
+* For each url, a git clone is performed.
+* If a clone already exists - a git pull is performed instead.
 
 ## Usage:
   - Expects 0 - 2 arguments.
@@ -10,7 +10,6 @@
   - Second expected argument is directory path to clone repos to.
 
 ### No arguments:
-  - File to read repos urls from is './my.list'.
-  - Directory to save repos to is '.' (current directory).
-
-\* Arguments are cached to '~/git\_init\_settings' for subsequent uses.
+  - Attempts to read and use cached settings from '~/git\_init\_settings'.
+  - default file to read repos urls from is './my.list'.
+  - default directory to save repos to is the current directory.
